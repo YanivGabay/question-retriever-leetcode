@@ -50,12 +50,18 @@ function App() {
     medium: number;
     hard: number;
     sent: number;
-  }>({ 
-    total: 0, 
-    easy: 0, 
-    medium: 0, 
+    sentEasy: number;
+    sentMedium: number;
+    sentHard: number;
+  }>({
+    total: 0,
+    easy: 0,
+    medium: 0,
     hard: 0,
-    sent: 0 
+    sent: 0,
+    sentEasy: 0,
+    sentMedium: 0,
+    sentHard: 0
   });
 
   const [showSentQuestions, setShowSentQuestions] = useState(false);
@@ -94,12 +100,26 @@ function App() {
     };
   }, []);
 
-  // Setup real-time listener for sent questions count
+  // Setup real-time listener for sent questions count (total and by difficulty)
   useEffect(() => {
     const unsubscribe = onSnapshot(collection(db, 'retrievedQuestions'), (snapshot) => {
+      let sentEasy = 0;
+      let sentMedium = 0;
+      let sentHard = 0;
+
+      snapshot.docs.forEach(doc => {
+        const difficulty = doc.data().difficulty;
+        if (difficulty === 'Easy') sentEasy++;
+        else if (difficulty === 'Medium') sentMedium++;
+        else if (difficulty === 'Hard') sentHard++;
+      });
+
       setStats(prevStats => ({
         ...prevStats,
-        sent: snapshot.size
+        sent: snapshot.size,
+        sentEasy,
+        sentMedium,
+        sentHard
       }));
     }, (error) => {
       console.error('Error in sent questions count listener:', error);
