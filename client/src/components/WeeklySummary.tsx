@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { collection, query, where, getDocs, Timestamp } from 'firebase/firestore';
+import { collection, getDocs } from 'firebase/firestore';
 import { db } from '../firebase/config';
 import { RetrievedQuestion } from '../models/RetrievedQuestion';
 
@@ -79,6 +79,22 @@ const WeeklySummary: React.FC<WeeklySummaryProps> = ({ isVisible }) => {
     }
   };
 
+  // Get Hebrew day name
+  const getHebrewDayName = (date: Date) => {
+    const days = ['יום ראשון', 'יום שני', 'יום שלישי', 'יום רביעי', 'יום חמישי', 'יום שישי', 'יום שבת'];
+    return days[date.getDay()];
+  };
+
+  // Get difficulty emoji
+  const getDifficultyEmoji = (difficulty: string) => {
+    switch (difficulty) {
+      case 'Easy': return '🟢';
+      case 'Medium': return '🟡';
+      case 'Hard': return '🔴';
+      default: return '⚡️';
+    }
+  };
+
   // Generate the formatted message
   const generateMessage = (questions: RetrievedQuestion[], range: { start: Date; end: Date }) => {
     if (questions.length === 0) {
@@ -86,31 +102,33 @@ const WeeklySummary: React.FC<WeeklySummaryProps> = ({ isVisible }) => {
       return;
     }
 
-    const easy = questions.filter(q => q.difficulty === 'Easy');
-    const medium = questions.filter(q => q.difficulty === 'Medium');
-    const hard = questions.filter(q => q.difficulty === 'Hard');
-
-    const formatQuestion = (q: RetrievedQuestion) => {
-      const topics = q.topicTags?.map(t => t.name).join(', ') || '';
-      const topicsPart = topics ? ` (${topics})` : '';
-      return `• #${q.frontendQuestionId} ${q.title}${topicsPart}`;
-    };
-
-    const formatSection = (label: string, emoji: string, qs: RetrievedQuestion[]) => {
-      if (qs.length === 0) return '';
-      return `${emoji} ${label}:\n${qs.map(formatQuestion).join('\n')}\n`;
-    };
-
     const dateRangeStr = formatDateRange(range.start, range.end);
 
-    const msg = `📊 סיכום שבועי - שאלות LeetCode
+    // Format each question with day name
+    const questionLines = questions.map(q => {
+      const sentDate = new Date(q.sentDate);
+      const dayName = getHebrewDayName(sentDate);
+      const diffEmoji = getDifficultyEmoji(q.difficulty);
 
-🗓️ שבוע ${dateRangeStr}
+      return `✅ ${dayName}: ${q.title}
+${diffEmoji} קושי: ${q.difficulty}
+🔗 https://leetcode.com/problems/${q.titleSlug}
+`;
+    }).join('\n');
 
-${formatSection('Easy', '📗', easy)}${formatSection('Medium', '📙', medium)}${formatSection('Hard', '📕', hard)}
-סה"כ: ${questions.length} שאלות השבוע
+    const msg = `📅 סיכום שבועי LeetCode 📅
+(${dateRangeStr})
 
-🚀 שבוע מעולה! 💪
+${questionLines}
+🔥 כל הכבוד על ההתמדה! 🔥
+
+🔗 קישורים חשובים:
+
+אתר LeetCode:
+https://leetcode.com/
+
+מדריך איך להשתמש בפלטפורמה של ליטקוד:
+https://yanivgabay.github.io/leetcode-web-guide/
 `;
 
     setMessage(msg);
