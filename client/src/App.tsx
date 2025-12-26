@@ -21,6 +21,7 @@ import ImportPanel from './components/ImportPanel';
 import LoadingSpinner from './components/LoadingSpinner';
 import ErrorMessage from './components/ErrorMessage';
 import SentQuestionsList from './components/SentQuestionsList';
+import WeeklySummary from './components/WeeklySummary';
 
 import './App.css';
 
@@ -65,6 +66,7 @@ function App() {
   });
 
   const [showSentQuestions, setShowSentQuestions] = useState(false);
+  const [showWeeklySummary, setShowWeeklySummary] = useState(false);
 
   // Check if database has questions on component mount
   useEffect(() => {
@@ -320,17 +322,25 @@ function App() {
           />
         )}
 
-        <div className="mt-4 text-center">
+        <div className="mt-4 text-center flex justify-center gap-4 flex-wrap">
           <button
             onClick={() => setShowSentQuestions(!showSentQuestions)}
             className="text-blue-600 hover:text-blue-800 font-medium"
           >
             {showSentQuestions ? 'Hide Sent Questions' : 'Show Sent Questions'}
           </button>
+          <button
+            onClick={() => setShowWeeklySummary(!showWeeklySummary)}
+            className="text-purple-600 hover:text-purple-800 font-medium"
+          >
+            {showWeeklySummary ? 'Hide Weekly Summary' : '📊 Weekly Summary'}
+          </button>
         </div>
 
-        <SentQuestionsList 
-          isVisible={showSentQuestions} 
+        <WeeklySummary isVisible={showWeeklySummary} />
+
+        <SentQuestionsList
+          isVisible={showSentQuestions}
           onUnsend={handleUnsend}
         />
         
