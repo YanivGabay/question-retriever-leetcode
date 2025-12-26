@@ -208,17 +208,24 @@ function App() {
     setIsRetrieving(true);
     setRetrievalError(null);
     setRandomQuestion(null);
-    
+
     try {
       const question = await getRandomUnsentQuestionByDifficulty(selectedDifficulty);
       setRandomQuestion(question);
-      
+
       if (!question) {
         setRetrievalError(`No more unsent ${selectedDifficulty} questions available!`);
       } else {
-        // Check if question is already sent to set the correct UI state
-        const { isSent } = await isQuestionAlreadySent(question.id);
-        setQuestionSent(isSent);
+        // Auto-mark the question as sent when retrieved
+        const retrievedId = await markQuestionAsSent(question);
+        if (retrievedId) {
+          console.log(`Question "${question.title}" auto-marked as sent`);
+          setQuestionSent(true);
+        } else {
+          // Fallback: check if already sent
+          const { isSent } = await isQuestionAlreadySent(question.id);
+          setQuestionSent(isSent);
+        }
       }
     } catch (err) {
       console.error('Error retrieving question:', err);
