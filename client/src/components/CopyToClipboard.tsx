@@ -11,20 +11,18 @@ const CopyToClipboard: React.FC<CopyToClipboardProps> = ({ question }) => {
 
   // Create the message directly with actual values
   useEffect(() => {
-    const populatedMessage = `🧠 שאלת היום:
+    const topics = question.topicTags?.map(tag => tag.name).join(', ') || '';
+    const topicsLine = topics ? `\n🏷️ נושאים: ${topics}\n` : '';
+
+    const populatedMessage = `🧠 שאלת היום #${question.frontendQuestionId}:
 ${question.title}
 
 ⚡ קושי: ${question.difficulty}
-
+${topicsLine}
 🔗 קישור:
 https://leetcode.com/problems/${question.titleSlug}
 
-📚 קישור לדרייב:
-XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-
-
 🚀 הרבה בהצלחה! 💪
-
 `;
     setMessage(populatedMessage);
     setIsCopied(false);
