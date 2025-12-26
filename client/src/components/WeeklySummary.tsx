@@ -113,6 +113,9 @@ const WeeklySummary: React.FC<WeeklySummaryProps> = ({ isVisible }) => {
       return `✅ ${dayName}: ${q.title}
 ${diffEmoji} קושי: ${q.difficulty}
 🔗 https://leetcode.com/problems/${q.titleSlug}
+
+*פתרון אופטימלי*: [הוסיפי כאן]
+סיבוכיות זמן: O(?), סיבוכיות מקום: O(?)
 `;
     }).join('\n');
 
