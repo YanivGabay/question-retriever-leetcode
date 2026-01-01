@@ -1,0 +1,18 @@
+{
+  "name": "question-retriever-leetcode",
+  "version": "1.0.0",
+  "description": "A tool to fetch LeetCode questions for our WhatsApp community",
+  "private": true,
+  "scripts": {
+    "test": "npm run test:functions && npm run test:client",
+    "test:functions": "cd functions && npm test",
+    "test:client": "cd client && npm test",
+    "build": "npm run build:functions && npm run build:client",
+    "build:functions": "cd functions && npm run build",
+    "build:client": "cd client && npm run build",
+    "prepare": "husky"
+  },
+  "devDependencies": {
+    "husky": "^9.0.0"
+  }
+}
