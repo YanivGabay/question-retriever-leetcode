@@ -70,6 +70,15 @@ const WeeklySummary: React.FC<WeeklySummaryProps> = ({ isVisible }) => {
         })
         .sort((a, b) => new Date(a.sentDate).getTime() - new Date(b.sentDate).getTime());
 
+      // Debug: Log the actual dates
+      console.log('=== Weekly Summary Debug ===');
+      console.log('Week range:', range.start.toISOString(), 'to', range.end.toISOString());
+      questions.forEach(q => {
+        const d = new Date(q.sentDate);
+        console.log(`${q.title}: sentDate=${q.sentDate}, parsed=${d.toISOString()}, day=${d.getDay()} (${['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][d.getDay()]})`);
+      });
+      console.log('=== End Debug ===');
+
       setWeekQuestions(questions);
       generateMessage(questions, range);
     } catch (error) {
