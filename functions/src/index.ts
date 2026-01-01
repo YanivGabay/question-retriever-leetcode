@@ -166,7 +166,9 @@ Respond in Hebrew with ONLY this exact format (no extra text):
 /**
  * Backfill AI summaries for this week's questions
  */
-export const backfillWeekSummaries = functions.https.onCall(
+export const backfillWeekSummaries = functions
+  .runWith({timeoutSeconds: 300}) // 5 minutes timeout
+  .https.onCall(
   async (): Promise<{updated: number; errors: number}> => {
     const apiKey = process.env.OPENROUTER_API_KEY ||
       functions.config().openrouter?.api_key;

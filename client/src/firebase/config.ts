@@ -39,7 +39,7 @@ try {
   // Initialize Firebase
   const app = initializeApp(firebaseConfig);
 
-  // Initialize Firestore with settings for better network handling
+  // Initialize Firestore
   db = getFirestore(app);
 
   // Initialize Functions
@@ -49,15 +49,6 @@ try {
   if (import.meta.env.DEV && import.meta.env.VITE_USE_EMULATOR === 'true') {
     connectFunctionsEmulator(functions, 'localhost', 5001);
     console.log("Connected to Firebase Functions emulator");
-  }
-
-  // Force long polling in production to solve connection issues
-  if (import.meta.env.PROD) {
-    db.settings({
-      experimentalForceLongPolling: true,
-      useFetchStreams: false
-    });
-    console.log("Firebase Firestore using long polling for better production connectivity");
   }
 } catch (error) {
   console.error("Error initializing Firebase:", error);
