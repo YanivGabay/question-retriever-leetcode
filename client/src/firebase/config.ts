@@ -1,6 +1,7 @@
 // Import the functions you need from the SDKs you need
 import { initializeApp } from "firebase/app";
 import { getFirestore } from "firebase/firestore";
+import { getFunctions, connectFunctionsEmulator } from "firebase/functions";
 
 // Your web app's Firebase configuration
 interface FirebaseConfig {
@@ -32,6 +33,7 @@ if (!isConfigValid) {
 
 // Initialize with default null value
 let db: any = null;
+let functions: any = null;
 
 try {
   // Initialize Firebase
@@ -39,7 +41,16 @@ try {
 
   // Initialize Firestore with settings for better network handling
   db = getFirestore(app);
-  
+
+  // Initialize Functions
+  functions = getFunctions(app);
+
+  // Connect to emulator in development
+  if (import.meta.env.DEV && import.meta.env.VITE_USE_EMULATOR === 'true') {
+    connectFunctionsEmulator(functions, 'localhost', 5001);
+    console.log("Connected to Firebase Functions emulator");
+  }
+
   // Force long polling in production to solve connection issues
   if (import.meta.env.PROD) {
     db.settings({
@@ -52,4 +63,4 @@ try {
   console.error("Error initializing Firebase:", error);
 }
 
-export { db }; 
+export { db, functions }; 

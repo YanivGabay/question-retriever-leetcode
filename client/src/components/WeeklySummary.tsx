@@ -110,12 +110,17 @@ const WeeklySummary: React.FC<WeeklySummaryProps> = ({ isVisible }) => {
       const dayName = getHebrewDayName(sentDate);
       const diffEmoji = getDifficultyEmoji(q.difficulty);
 
+      // Use AI summary if available, otherwise show placeholders
+      const solution = q.aiSummary?.solution || '[הוסיפי כאן]';
+      const timeComplexity = q.aiSummary?.timeComplexity || 'O(?)';
+      const spaceComplexity = q.aiSummary?.spaceComplexity || 'O(?)';
+
       return `✅ ${dayName}: ${q.title}
 ${diffEmoji} קושי: ${q.difficulty}
 🔗 https://leetcode.com/problems/${q.titleSlug}
 
-*פתרון אופטימלי*: [הוסיפי כאן]
-סיבוכיות זמן: O(?), סיבוכיות מקום: O(?)
+*פתרון אופטימלי*: ${solution}
+סיבוכיות זמן: ${timeComplexity}, סיבוכיות מקום: ${spaceComplexity}
 `;
     }).join('\n');
 

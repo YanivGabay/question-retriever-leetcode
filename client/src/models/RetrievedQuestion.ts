@@ -1,6 +1,15 @@
 import { Question, TopicTag } from './Question';
 
 /**
+ * AI-generated summary for a question
+ */
+export interface AISummary {
+  solution: string;
+  timeComplexity: string;
+  spaceComplexity: string;
+}
+
+/**
  * RetrievedQuestion interface - represents a question that was sent to WhatsApp
  */
 export interface RetrievedQuestion {
@@ -13,6 +22,7 @@ export interface RetrievedQuestion {
   topicTags: TopicTag[];
   sentDate: string;
   isChosen: boolean;
+  aiSummary?: AISummary;
 }
 
 /**

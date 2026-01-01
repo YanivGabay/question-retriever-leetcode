@@ -1,18 +1,19 @@
-import { 
-  collection, 
-  doc, 
-  getDocs, 
-  addDoc, 
-  query, 
+import {
+  collection,
+  doc,
+  getDocs,
+  addDoc,
+  query,
   where,
   DocumentData,
   QueryDocumentSnapshot,
   onSnapshot,
   deleteDoc
 } from 'firebase/firestore';
-import { db } from '../firebase/config';
+import { httpsCallable } from 'firebase/functions';
+import { db, functions } from '../firebase/config';
 import { Question, TopicTag } from '../models/Question';
-import { createRetrievedQuestion } from '../models/RetrievedQuestion';
+import { createRetrievedQuestion, AISummary } from '../models/RetrievedQuestion';
 
 // Collection references
 const questionsCol = collection(db, 'questions');
@@ -143,22 +144,58 @@ export const isQuestionAlreadySent = async (questionId: string): Promise<{isSent
 };
 
 /**
+ * Get AI summary for a question using Firebase Function
+ */
+const getAISummary = async (question: Question): Promise<AISummary | null> => {
+  try {
+    if (!functions) {
+      console.warn("Firebase Functions not initialized");
+      return null;
+    }
+
+    const getQuestionSummary = httpsCallable<
+      { title: string; difficulty: string; titleSlug: string },
+      AISummary
+    >(functions, 'getQuestionSummary');
+
+    const result = await getQuestionSummary({
+      title: question.title,
+      difficulty: question.difficulty,
+      titleSlug: question.titleSlug
+    });
+
+    console.log("AI Summary received:", result.data);
+    return result.data;
+  } catch (error) {
+    console.error("Error getting AI summary:", error);
+    return null;
+  }
+};
+
+/**
  * Record that a question was sent to the WhatsApp group
  */
 export const markQuestionAsSent = async (question: Question & { id: string }): Promise<string | null> => {
   try {
     // First check if this question has already been sent
     const { isSent, retrievedDocId } = await isQuestionAlreadySent(question.id);
-    
+
     if (isSent && retrievedDocId) {
       console.log(`Question "${question.title}" was already marked as sent with ID: ${retrievedDocId}`);
       return retrievedDocId;
     }
-    
+
     // Create a record in retrievedQuestions collection using the helper function
     const retrievedQuestion = createRetrievedQuestion(question);
+
+    // Get AI summary in parallel (don't block if it fails)
+    const aiSummary = await getAISummary(question);
+    if (aiSummary) {
+      retrievedQuestion.aiSummary = aiSummary;
+    }
+
     const retrievedDoc = await addDoc(retrievedQuestionsCol, retrievedQuestion);
-    
+
     console.log(`Question "${question.title}" marked as sent with ID: ${retrievedDoc.id}`);
     return retrievedDoc.id;
   } catch (error) {
