@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { collection, getDocs } from 'firebase/firestore';
-import { db } from '../firebase/config';
+import { httpsCallable } from 'firebase/functions';
+import { db, functions } from '../firebase/config';
 import { RetrievedQuestion } from '../models/RetrievedQuestion';
 
 interface WeeklySummaryProps {
@@ -13,6 +14,8 @@ const WeeklySummary: React.FC<WeeklySummaryProps> = ({ isVisible }) => {
   const [message, setMessage] = useState('');
   const [isCopied, setIsCopied] = useState(false);
   const [dateRange, setDateRange] = useState<{ start: Date; end: Date } | null>(null);
+  const [isBackfilling, setIsBackfilling] = useState(false);
+  const [backfillResult, setBackfillResult] = useState<string | null>(null);
 
   // Get Sunday-Thursday date range for current week
   const getWeekRange = () => {
@@ -155,6 +158,35 @@ https://yanivgabay.github.io/leetcode-web-guide/
     });
   };
 
+  const handleBackfill = async () => {
+    if (!functions) {
+      setBackfillResult('Firebase Functions not available');
+      return;
+    }
+
+    setIsBackfilling(true);
+    setBackfillResult(null);
+
+    try {
+      const backfillWeekSummaries = httpsCallable<void, { updated: number; errors: number }>(
+        functions,
+        'backfillWeekSummaries'
+      );
+      const result = await backfillWeekSummaries();
+      setBackfillResult(`Updated ${result.data.updated} questions, ${result.data.errors} errors`);
+      // Refresh the questions after backfill
+      await fetchWeekQuestions();
+    } catch (error) {
+      console.error('Backfill error:', error);
+      setBackfillResult('Error running backfill');
+    } finally {
+      setIsBackfilling(false);
+    }
+  };
+
+  // Check if any questions are missing AI summaries
+  const missingAISummaries = weekQuestions.filter(q => !q.aiSummary).length;
+
   if (!isVisible) return null;
 
   return (
@@ -176,6 +208,25 @@ https://yanivgabay.github.io/leetcode-web-guide/
         <p className="text-sm text-gray-500 mb-4">
           Showing questions from Sunday to Thursday ({formatDateRange(dateRange.start, dateRange.end)})
         </p>
+      )}
+
+      {/* Backfill button - shows only if there are questions missing AI summaries */}
+      {missingAISummaries > 0 && (
+        <div className="mb-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+          <p className="text-sm text-yellow-800 mb-2">
+            {missingAISummaries} question(s) missing AI summaries
+          </p>
+          <button
+            onClick={handleBackfill}
+            disabled={isBackfilling}
+            className="px-4 py-2 bg-yellow-500 text-white rounded-lg text-sm font-medium hover:bg-yellow-600 disabled:opacity-50"
+          >
+            {isBackfilling ? 'Generating...' : 'Generate AI Summaries'}
+          </button>
+          {backfillResult && (
+            <p className="text-sm text-yellow-700 mt-2">{backfillResult}</p>
+          )}
+        </div>
       )}
 
       {isLoading ? (
