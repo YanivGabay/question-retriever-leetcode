@@ -30,7 +30,7 @@ interface RetrievedQuestion {
 
 export const getQuestionSummary = functions.https.onCall(
   async (request): Promise<AISummary> => {
-    const data = request.data as QuestionData;
+    const data = (request.data ?? request) as QuestionData;
     const {title, difficulty, titleSlug} = data;
 
     // Get API key from Firebase config
@@ -66,7 +66,7 @@ Respond in Hebrew with ONLY this exact format (no extra text):
           "X-Title": "LeetCode Question Retriever",
         },
         body: JSON.stringify({
-          model: "google/gemini-2.0-flash-001",
+          model: "deepseek/deepseek-v4-flash",
           messages: [
             {
               role: "user",
@@ -138,7 +138,7 @@ Respond in Hebrew with ONLY this exact format (no extra text):
       "X-Title": "LeetCode Question Retriever",
     },
     body: JSON.stringify({
-      model: "google/gemini-2.0-flash-001",
+      model: "deepseek/deepseek-v4-flash",
       messages: [{role: "user", content: prompt}],
       max_tokens: 300,
       temperature: 0.3,
@@ -194,8 +194,11 @@ export const backfillWeekSummaries = functions
 
     console.log(`Backfilling for week: ${sunday.toISOString()} - ${thursday.toISOString()}`);
 
-    // Fetch all retrieved questions
-    const snapshot = await db.collection("retrievedQuestions").get();
+    const snapshot = await db.collection("retrievedQuestions")
+      .where("sentDate", ">=", sunday.toISOString())
+      .where("sentDate", "<=", thursday.toISOString())
+      .orderBy("sentDate")
+      .get();
 
     let updated = 0;
     let errors = 0;
@@ -203,13 +206,6 @@ export const backfillWeekSummaries = functions
     for (const doc of snapshot.docs) {
       const question = doc.data() as RetrievedQuestion;
 
-      // Check if within date range
-      const sentDate = new Date(question.sentDate);
-      if (sentDate < sunday || sentDate > thursday) {
-        continue;
-      }
-
-      // Skip if already has AI summary
       if (question.aiSummary) {
         console.log(`Skipping ${question.title} - already has summary`);
         continue;

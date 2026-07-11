@@ -3,6 +3,7 @@ import {
   doc,
   getDocs,
   addDoc,
+  updateDoc,
   query,
   where,
   DocumentData,
@@ -185,18 +186,21 @@ export const markQuestionAsSent = async (question: Question & { id: string }): P
       return retrievedDocId;
     }
 
-    // Create a record in retrievedQuestions collection using the helper function
+    // Write to Firestore immediately so the UI updates fast
     const retrievedQuestion = createRetrievedQuestion(question);
-
-    // Get AI summary in parallel (don't block if it fails)
-    const aiSummary = await getAISummary(question);
-    if (aiSummary) {
-      retrievedQuestion.aiSummary = aiSummary;
-    }
-
     const retrievedDoc = await addDoc(retrievedQuestionsCol, retrievedQuestion);
-
     console.log(`Question "${question.title}" marked as sent with ID: ${retrievedDoc.id}`);
+
+    // Generate AI summary in the background — don't block the user
+    getAISummary(question).then(async (aiSummary) => {
+      if (aiSummary) {
+        await updateDoc(doc(retrievedQuestionsCol, retrievedDoc.id), { aiSummary });
+        console.log(`AI summary added for: ${question.title}`);
+      }
+    }).catch((error) => {
+      console.error("Background AI summary failed:", error);
+    });
+
     return retrievedDoc.id;
   } catch (error) {
     console.error("Error marking question as sent:", error);

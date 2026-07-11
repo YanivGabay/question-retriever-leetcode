@@ -2,8 +2,8 @@ import { useState, useEffect } from 'react';
 import { collection, getDocs, query, where, onSnapshot } from 'firebase/firestore';
 import { db } from './firebase/config';
 import { importQuestionsFromJSON } from './utils/importQuestions';
-import { 
-  getRandomUnsentQuestionByDifficulty, 
+import {
+  getRandomUnsentQuestionByDifficulty,
 
   markQuestionAsSent,
   unsendQuestion,
@@ -22,10 +22,13 @@ import LoadingSpinner from './components/LoadingSpinner';
 import ErrorMessage from './components/ErrorMessage';
 import SentQuestionsList from './components/SentQuestionsList';
 import WeeklySummary from './components/WeeklySummary';
+import { ToastProvider, useToast } from './components/Toast';
 
 import './App.css';
 
-function App() {
+function AppContent() {
+  const { showToast } = useToast();
+
   // Database status
   const [isDbEmpty, setIsDbEmpty] = useState<boolean | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -43,6 +46,7 @@ function App() {
   const [isRetrieving, setIsRetrieving] = useState(false);
   const [retrievalError, setRetrievalError] = useState<string | null>(null);
   const [questionSent, setQuestionSent] = useState(false);
+  const [isSending, setIsSending] = useState(false);
 
   // Stats
   const [stats, setStats] = useState<{
@@ -68,18 +72,29 @@ function App() {
   const [showSentQuestions, setShowSentQuestions] = useState(false);
   const [showWeeklySummary, setShowWeeklySummary] = useState(false);
 
-  // Check if database has questions on component mount
+  // Dark mode
+  const [darkMode, setDarkMode] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('darkMode');
+      if (saved !== null) return saved === 'true';
+      return window.matchMedia('(prefers-color-scheme: dark)').matches;
+    }
+    return false;
+  });
+
+  useEffect(() => {
+    document.documentElement.classList.toggle('dark', darkMode);
+    localStorage.setItem('darkMode', String(darkMode));
+  }, [darkMode]);
+
   useEffect(() => {
     const checkDatabase = async () => {
       try {
         const snapshot = await getDocs(collection(db, 'questions'));
         setIsDbEmpty(snapshot.size === 0);
-        
+
         if (snapshot.size > 0) {
-          // If we have questions, set up the real-time stats listeners
           const cleanup = await fetchStats();
-          
-          // Clean up function will be called when component unmounts
           return cleanup;
         }
       } catch (err) {
@@ -91,8 +106,7 @@ function App() {
     };
 
     const cleanupFn = checkDatabase();
-    
-    // Return cleanup function
+
     return () => {
       if (cleanupFn) {
         cleanupFn.then(cleanup => {
@@ -102,7 +116,6 @@ function App() {
     };
   }, []);
 
-  // Setup real-time listener for sent questions count (total and by difficulty)
   useEffect(() => {
     const unsubscribe = onSnapshot(collection(db, 'retrievedQuestions'), (snapshot) => {
       let sentEasy = 0;
@@ -130,20 +143,17 @@ function App() {
     return () => unsubscribe();
   }, []);
 
-  // Fetch question stats
   const fetchStats = async () => {
     try {
-      // Set up a real-time listener for total questions
       const unsubscribeTotal = onSnapshot(collection(db, 'questions'), (snapshot) => {
         setStats(prevStats => ({
           ...prevStats,
           total: snapshot.size
         }));
       });
-      
-      // Set up listeners for questions by difficulty
+
       const unsubscribeEasy = onSnapshot(
-        query(collection(db, 'questions'), where('difficulty', '==', 'Easy')), 
+        query(collection(db, 'questions'), where('difficulty', '==', 'Easy')),
         (snapshot) => {
           setStats(prevStats => ({
             ...prevStats,
@@ -151,9 +161,9 @@ function App() {
           }));
         }
       );
-      
+
       const unsubscribeMedium = onSnapshot(
-        query(collection(db, 'questions'), where('difficulty', '==', 'Medium')), 
+        query(collection(db, 'questions'), where('difficulty', '==', 'Medium')),
         (snapshot) => {
           setStats(prevStats => ({
             ...prevStats,
@@ -161,9 +171,9 @@ function App() {
           }));
         }
       );
-      
+
       const unsubscribeHard = onSnapshot(
-        query(collection(db, 'questions'), where('difficulty', '==', 'Hard')), 
+        query(collection(db, 'questions'), where('difficulty', '==', 'Hard')),
         (snapshot) => {
           setStats(prevStats => ({
             ...prevStats,
@@ -171,8 +181,7 @@ function App() {
           }));
         }
       );
-      
-      // Clean up listeners when component unmounts
+
       return () => {
         unsubscribeTotal();
         unsubscribeEasy();
@@ -187,14 +196,12 @@ function App() {
   const handleImport = async () => {
     setIsImporting(true);
     setImportError(null);
-    
+
     try {
       const count = await importQuestionsFromJSON('/free_leetcode_questions.json');
       setImportCount(count);
       setImportDone(true);
       setIsDbEmpty(false);
-      
-      // Fetch updated stats
       fetchStats();
     } catch (err) {
       console.error('Import error:', err);
@@ -216,16 +223,16 @@ function App() {
       if (!question) {
         setRetrievalError(`No more unsent ${selectedDifficulty} questions available!`);
       } else {
-        // Auto-mark the question as sent when retrieved
+        setIsSending(true);
         const retrievedId = await markQuestionAsSent(question);
         if (retrievedId) {
-          console.log(`Question "${question.title}" auto-marked as sent`);
           setQuestionSent(true);
+          showToast(`"${question.title}" marked as sent`, 'success');
         } else {
-          // Fallback: check if already sent
           const { isSent } = await isQuestionAlreadySent(question.id);
           setQuestionSent(isSent);
         }
+        setIsSending(false);
       }
     } catch (err) {
       console.error('Error retrieving question:', err);
@@ -237,35 +244,31 @@ function App() {
 
   const handleToggleSentStatus = async () => {
     if (!randomQuestion) return;
-    
+
     try {
+      setIsSending(true);
       if (questionSent) {
-        // If currently marked as sent, unsend it
-        setIsRetrieving(true); // Show loading state
         const success = await unsendQuestion(randomQuestion.id);
-        
         if (success) {
-          console.log(`Successfully unmarked question "${randomQuestion.title}" as sent`);
           setQuestionSent(false);
+          showToast(`"${randomQuestion.title}" unmarked`, 'info');
         } else {
-          console.error("Failed to unsend question. It may have already been unsent by another user.");
+          showToast('Failed to unsend question', 'error');
         }
       } else {
-        // If not sent, mark it as sent
-        setIsRetrieving(true); // Show loading state
         const retrievedId = await markQuestionAsSent(randomQuestion);
-        
         if (retrievedId) {
-          console.log(`Successfully marked question "${randomQuestion.title}" as sent`);
           setQuestionSent(true);
+          showToast(`"${randomQuestion.title}" marked as sent`, 'success');
         } else {
-          console.error("Failed to mark question as sent");
+          showToast('Failed to mark question as sent', 'error');
         }
       }
     } catch (error) {
       console.error("Error toggling question sent status:", error);
+      showToast('Something went wrong', 'error');
     } finally {
-      setIsRetrieving(false); // Hide loading state
+      setIsSending(false);
     }
   };
 
@@ -276,19 +279,14 @@ function App() {
     }));
   };
 
-  // Different UI states based on application status
-  
-  // Loading state
   if (isLoading) {
     return <LoadingSpinner message="Connecting to Firebase..." />;
   }
 
-  // Database connection error
   if (dbError) {
     return <ErrorMessage message={dbError} title="Connection Error" fullScreen={true} />;
   }
 
-  // Import view (shown only if database is empty)
   if (isDbEmpty === true) {
     return (
       <ImportPanel
@@ -301,44 +299,44 @@ function App() {
     );
   }
 
-  // Main application view
   return (
-    <div className="min-h-screen bg-gray-100 py-8 px-4">
+    <div className="min-h-screen bg-gray-100 dark:bg-slate-900 py-6 sm:py-8 px-3 sm:px-4 transition-colors">
       <div className="container mx-auto">
-        <Header subtitle="Find and track random LeetCode questions by difficulty" />
-        
+        <Header subtitle="Find and track random LeetCode questions by difficulty" darkMode={darkMode} onToggleDarkMode={() => setDarkMode(!darkMode)} />
+
         <StatsPanel stats={stats} />
-        
+
         <QuestionSelector
           selectedDifficulty={selectedDifficulty}
           isRetrieving={isRetrieving}
           onSelectDifficulty={setSelectedDifficulty}
           onGetQuestion={handleGetRandomQuestion}
         />
-      
+
         {retrievalError && (
           <ErrorMessage message={retrievalError} />
         )}
-      
+
         {randomQuestion && (
           <QuestionCard
             question={randomQuestion}
             questionSent={questionSent}
+            isSending={isSending}
             onToggleSentStatus={handleToggleSentStatus}
             onGetAnother={handleGetRandomQuestion}
           />
         )}
 
-        <div className="mt-4 text-center flex justify-center gap-4 flex-wrap">
+        <div className="mt-4 text-center flex justify-center gap-3 sm:gap-4 flex-wrap">
           <button
             onClick={() => setShowSentQuestions(!showSentQuestions)}
-            className="text-blue-600 hover:text-blue-800 font-medium"
+            className="text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 font-medium text-sm sm:text-base"
           >
             {showSentQuestions ? 'Hide Sent Questions' : 'Show Sent Questions'}
           </button>
           <button
             onClick={() => setShowWeeklySummary(!showWeeklySummary)}
-            className="bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700 transition font-medium shadow-md"
+            className="bg-purple-600 text-white px-3 sm:px-4 py-2 rounded-lg hover:bg-purple-700 transition font-medium shadow-md text-sm sm:text-base"
           >
             {showWeeklySummary ? 'Hide Weekly Summary' : '📊 Weekly Summary'}
           </button>
@@ -350,10 +348,18 @@ function App() {
           isVisible={showSentQuestions}
           onUnsend={handleUnsend}
         />
-        
+
         <Footer />
       </div>
     </div>
+  );
+}
+
+function App() {
+  return (
+    <ToastProvider>
+      <AppContent />
+    </ToastProvider>
   );
 }
 
