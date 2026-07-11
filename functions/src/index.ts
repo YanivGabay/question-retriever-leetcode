@@ -206,7 +206,7 @@ export const backfillWeekSummaries = functions
     for (const doc of snapshot.docs) {
       const question = doc.data() as RetrievedQuestion;
 
-      if (question.aiSummary) {
+      if (question.aiSummary?.solution) {
         console.log(`Skipping ${question.title} - already has summary`);
         continue;
       }

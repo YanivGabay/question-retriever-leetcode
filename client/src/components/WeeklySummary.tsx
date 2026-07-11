@@ -155,7 +155,7 @@ https://yanivgabay.github.io/leetcode-web-guide/
     }
   };
 
-  const missingAISummaries = weekQuestions.filter(q => !q.aiSummary).length;
+  const missingAISummaries = weekQuestions.filter(q => !q.aiSummary?.solution).length;
 
   if (!isVisible) return null;
 
