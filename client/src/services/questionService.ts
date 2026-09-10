@@ -174,6 +174,34 @@ const getAISummary = async (question: Question): Promise<AISummary | null> => {
 };
 
 /**
+ * Get a short, spoiler-free summary of what the question is asking.
+ */
+export const getQuestionDescriptionSummary = async (question: Question): Promise<string | null> => {
+  try {
+    if (!functions) {
+      console.warn("Firebase Functions not initialized");
+      return null;
+    }
+
+    const getDescriptionSummary = httpsCallable<
+      { title: string; difficulty: string; titleSlug: string },
+      { summary: string }
+    >(functions, 'getQuestionDescriptionSummary');
+
+    const result = await getDescriptionSummary({
+      title: question.title,
+      difficulty: question.difficulty,
+      titleSlug: question.titleSlug
+    });
+
+    return result.data.summary || null;
+  } catch (error) {
+    console.error("Error getting question description summary:", error);
+    return null;
+  }
+};
+
+/**
  * Record that a question was sent to the WhatsApp group
  */
 export const markQuestionAsSent = async (question: Question & { id: string }): Promise<string | null> => {

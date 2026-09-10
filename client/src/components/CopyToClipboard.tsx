@@ -1,32 +1,55 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Question } from '../models/Question';
 import { useToast } from './Toast';
+import { getQuestionDescriptionSummary } from '../services/questionService';
 
 interface CopyToClipboardProps {
   question: (Question & { id: string });
 }
 
-const CopyToClipboard: React.FC<CopyToClipboardProps> = ({ question }) => {
-  const [message, setMessage] = useState('');
-  const [isCopied, setIsCopied] = useState(false);
-  const { showToast } = useToast();
+const buildMessage = (question: Question & { id: string }, summarySection: string): string => {
+  const topics = question.topicTags?.map(tag => tag.name).join(', ') || '';
+  const topicsLine = topics ? `\n🏷️ נושאים: ${topics}\n` : '';
 
-  useEffect(() => {
-    const topics = question.topicTags?.map(tag => tag.name).join(', ') || '';
-    const topicsLine = topics ? `\n🏷️ נושאים: ${topics}\n` : '';
-
-    const populatedMessage = `🧠 שאלת היום #${question.frontendQuestionId}:
+  return `🧠 שאלת היום #${question.frontendQuestionId}:
 ${question.title}
 
 ⚡ קושי: ${question.difficulty}
 ${topicsLine}
-🔗 קישור:
+${summarySection}🔗 קישור:
 https://leetcode.com/problems/${question.titleSlug}
 
 🚀 הרבה בהצלחה! 💪
 `;
-    setMessage(populatedMessage);
+};
+
+const CopyToClipboard: React.FC<CopyToClipboardProps> = ({ question }) => {
+  const [message, setMessage] = useState('');
+  const [isCopied, setIsCopied] = useState(false);
+  const [isSummaryLoading, setIsSummaryLoading] = useState(false);
+  const { showToast } = useToast();
+  const userEditedRef = useRef(false);
+
+  useEffect(() => {
+    userEditedRef.current = false;
     setIsCopied(false);
+    setIsSummaryLoading(true);
+    setMessage(buildMessage(question, '📝 מה מבקשים? ✨ מייצר תקציר...\n\n'));
+
+    let cancelled = false;
+    getQuestionDescriptionSummary(question)
+      .then((summary) => {
+        if (cancelled || userEditedRef.current) return;
+        const summarySection = summary ? `📝 מה מבקשים?\n${summary}\n\n` : '';
+        setMessage(buildMessage(question, summarySection));
+      })
+      .finally(() => {
+        if (!cancelled) setIsSummaryLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
   }, [question]);
 
   const handleCopy = () => {
@@ -51,10 +74,20 @@ https://leetcode.com/problems/${question.titleSlug}
           Edit the message below as needed, then copy it to share with your WhatsApp group!
         </p>
 
+        {isSummaryLoading && (
+          <p className="text-xs text-blue-600 dark:text-blue-400 mb-2 flex items-center gap-1">
+            <span className="inline-block w-3 h-3 border-2 border-current border-t-transparent rounded-full animate-spin" />
+            ✨ מייצר תקציר לשאלה...
+          </p>
+        )}
+
         <div className="relative">
           <textarea
             value={message}
-            onChange={(e) => setMessage(e.target.value)}
+            onChange={(e) => {
+              userEditedRef.current = true;
+              setMessage(e.target.value);
+            }}
             className="w-full h-44 sm:h-52 p-3 sm:p-4 border-2 border-gray-200 dark:border-gray-600 rounded-lg text-sm font-mono bg-white dark:bg-gray-900 text-gray-800 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent shadow-inner resize-none"
             rows={10}
             dir="auto"

@@ -110,6 +110,70 @@ Respond in Hebrew with ONLY this exact format (no extra text):
   }
 );
 
+interface DescriptionSummary {
+  summary: string;
+}
+
+export const getQuestionDescriptionSummary = functions.https.onCall(
+  async (request): Promise<DescriptionSummary> => {
+    const data = (request.data ?? request) as QuestionData;
+    const {title, difficulty, titleSlug} = data;
+    const apiKey = process.env.OPENROUTER_API_KEY ||
+      functions.config().openrouter?.api_key;
+
+    if (!apiKey) {
+      throw new functions.https.HttpsError(
+        "failed-precondition",
+        "OpenRouter API key not configured"
+      );
+    }
+
+    const prompt = `You are helping describe a LeetCode problem to students, before they attempt to solve it.
+
+Title: ${title}
+Difficulty: ${difficulty}
+URL: https://leetcode.com/problems/${titleSlug}
+
+Write a short 1-3 sentence summary in Hebrew of what the problem asks the solver to do.
+Do not mention or hint at an algorithm, strategy, solution, or time or space complexity.
+Only paraphrase the problem statement. Respond with only the Hebrew summary, with no labels or quotes.`;
+
+    try {
+      const response = await fetch(OPENROUTER_API_URL, {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${apiKey}`,
+          "Content-Type": "application/json",
+          "HTTP-Referer": "https://leetcode-question-retriever.web.app",
+          "X-Title": "LeetCode Question Retriever",
+        },
+        body: JSON.stringify({
+          model: "deepseek/deepseek-v4-flash",
+          messages: [{role: "user", content: prompt}],
+          max_tokens: 200,
+          temperature: 0.3,
+        }),
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error("OpenRouter API error:", errorText);
+        throw new Error("Failed to get AI response");
+      }
+
+      const result = await response.json();
+      const summary = result.choices?.[0]?.message?.content?.trim() || "";
+      return {summary};
+    } catch (error) {
+      console.error("Error calling OpenRouter for description summary:", error);
+      throw new functions.https.HttpsError(
+        "internal",
+        "Failed to generate description summary"
+      );
+    }
+  }
+);
+
 /**
  * Helper function to generate AI summary
  */

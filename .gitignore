@@ -41,6 +41,7 @@ firebase-debug.log
 firebase-debug.*.log
 
 free_leetcode_questions.json
+*firebase-adminsdk*.json
 
 
 
