@@ -4,6 +4,7 @@ import { db } from './firebase/config';
 import { importQuestionsFromJSON } from './utils/importQuestions';
 import {
   getRandomUnsentQuestionByDifficulty,
+  getAllQuestions,
 
   markQuestionAsSent,
   unsendQuestion,
@@ -47,6 +48,7 @@ function AppContent() {
   const [retrievalError, setRetrievalError] = useState<string | null>(null);
   const [questionSent, setQuestionSent] = useState(false);
   const [isSending, setIsSending] = useState(false);
+  const [questions, setQuestions] = useState<Array<Question & { id: string }>>([]);
 
   // Stats
   const [stats, setStats] = useState<{
@@ -114,6 +116,10 @@ function AppContent() {
         });
       }
     };
+  }, []);
+
+  useEffect(() => {
+    return getAllQuestions(setQuestions);
   }, []);
 
   useEffect(() => {
@@ -272,6 +278,13 @@ function AppContent() {
     }
   };
 
+  const handleSelectQuestion = async (question: Question & { id: string }) => {
+    setRetrievalError(null);
+    setRandomQuestion(question);
+    const { isSent } = await isQuestionAlreadySent(question.id);
+    setQuestionSent(isSent);
+  };
+
   const handleUnsend = () => {
     setStats(prevStats => ({
       ...prevStats,
@@ -309,8 +322,10 @@ function AppContent() {
         <QuestionSelector
           selectedDifficulty={selectedDifficulty}
           isRetrieving={isRetrieving}
+          questions={questions}
           onSelectDifficulty={setSelectedDifficulty}
           onGetQuestion={handleGetRandomQuestion}
+          onSelectQuestion={handleSelectQuestion}
         />
 
         {retrievalError && (
